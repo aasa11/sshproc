@@ -57,16 +57,29 @@ class cssh(threading.Thread):
         self.queue = cmdqueue
         
         self.msgip = " "+self.ip+":"+self.name+":"+self.pwd+" "
+        self.txtindex = 0
         
     def printf(self, msg):
-        self.tt.insert(Tkinter.END, msg);
-        self.tt.yview(Tkinter.END)
+        try :
+            self.tt.insert(Tkinter.END, msg)
+            self.tt.yview(Tkinter.END)
+            self.txtindex += msg.count('\n')
+            
+            if self.txtindex > 500:
+                self.tt.insert(Tkinter.END, "need delete")
+                self.tt.delete(0.0,300.0)
+                self.txtindex = self.txtindex-300
+        except Exception, e:
+            pass
         
     def getrecv(self):
         while self.ssh.recv_ready():
             output = self.ssh.recv(1024)
-            output = output.decode('gbk').encode('utf-8')
-            self.printf(output)
+            try:
+                out2 = output.decode('gbk').encode('utf-8')
+            except:
+                out2 = output
+            self.printf(out2)
         
     def connect(self):
         if self.connected :
@@ -153,6 +166,8 @@ class cssh(threading.Thread):
             #self.queue = Queue()
             if self.queue.empty():
                 time.sleep(0.5)
+                if self.connected:
+                    self.getrecv()
                 continue
             
             cmd = self.queue.get(block = False)
@@ -167,7 +182,9 @@ class sshwin:
         self.cfg = ccfg(filename)
         self.cfg.readcfg(item_key)      
         self.queues = []
-        self.switchnum = -1
+        self.switchnum = []
+        for i in self.cfg.getparas():
+            self.switchnum.append(1)
         
     def getrowcol(self,num):
         if num == 1:
@@ -180,12 +197,13 @@ class sshwin:
             return 2,2
         if num <= 6:
             return 2,3
-        if num <=8:
-            return 2,4
+        if num <=9:
+            return 3,3
         return 3,4
         
     def buildwin(self, isstop, isclose):
         self.root = Tkinter.Tk()
+        self.root.title("muti-control ssh terminal")
         cfgs = self.cfg.getparas()
         num = len(cfgs)
         row ,col = self.getrowcol(num)
@@ -198,7 +216,7 @@ class sshwin:
                     break
                 que = Queue()
                 self.queues.append(que)
-                tt = Tkinter.Text(self.root, height =15,width = 30)
+                tt = Tkinter.Text(self.root, height =15,width = 45)
                 tt.grid(row=i,column = j)
                 print cfgs[index]
                 ssh = cssh(index,cfgs[index], que,tt)
@@ -217,25 +235,53 @@ class sshwin:
             return False
         
         if cmd.startswith("switch "):
-            switchnum = int(cmd.split(" ")[1])
-            if switchnum >= len(self.queues) or switchnum <-1:
-                print "switch need in [-1.."+str(len(self.queues)-1)+"]"
-                return True
-            elif switchnum == -1:
-                self.switchnum = -1
-                print "control all terminals..."
-                cmd = "winshow terminals in control"
-            else:
-                self.switchnum = switchnum
-                print "control  terminal["+str(self.switchnum)+"..."
-                cmd = "winshow terminals in control"
-                
-        if self.switchnum == -1:
-            for que in self.queues:
-                que.put(cmd)
-        else:
-            self.queues[self.switchnum].put(cmd)
+            self.changeswitch(cmd)
+            cmd = "winshow terminals in control"
+                         
+        for i in range(0,len(self.switchnum)):
+            if self.switchnum[i]>0:
+                self.queues[i].put(cmd)
+        
         return True
+    
+    def changeswitch(self, cmd):
+        cmds = cmd.split(' ')
+        op = 0
+        if cmds[1] == 'on':
+            op = 1
+        elif cmds[1] == 'only':
+            for i in range(len(self.switchnum)):
+                self.switchnum[i] = 0
+                op = 1
+        elif cmds[1] == 'offly':
+            for i in range(len(self.switchnum)):
+                self.switchnum[i] = 1
+                op = 0
+                
+        
+            
+        if cmds[2] == 'all':
+            for i in range(len(self.switchnum)):
+                self.switchnum[i] = op
+        else:
+            opnum = cmds[2].split(",")
+            
+            for i in opnum:
+                try:
+                    i = int(i)
+                except:
+                    continue
+                if i >=len(self.switchnum) or i < 0:
+                    continue
+                self.switchnum[i] = op
+        print "oper terminals : "
+        for i in range(len(self.switchnum)):
+            if self.switchnum[i] > 0:
+                print str(i)+ " : on ",
+            else:
+                print str(i) + " : off ",
+        print '\n'
+        
     
     def dossh(self):
         thread.start_new_thread(self.buildwin, (False, False))
