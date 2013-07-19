@@ -12,6 +12,7 @@ import Tkinter
 import threading
 from multiprocessing import Queue
 import thread
+import sys
 
 class ccfg:
     def __init__(self,filename):
@@ -71,6 +72,13 @@ class cssh(threading.Thread):
                 self.txtindex = self.txtindex-300
         except Exception, e:
             pass
+        
+    def clearwin(self):
+        try:
+            self.tt.delete(0.0, Tkinter.END)
+        except Exception, e:
+            pass
+        self.tt.insert(Tkinter.END, "clear windows msg")
         
     def getrecv(self):
         while self.ssh.recv_ready():
@@ -146,6 +154,8 @@ class cssh(threading.Thread):
             self.close()
         elif cmd.startswith("winshow "):
             self.printf(cmd)
+        elif cmd == "clearwin":
+            self.clearwin()
         else :
             cmd = self.modcmd(cmd)
             self.sendcmd(cmd)
@@ -216,7 +226,7 @@ class sshwin:
                     break
                 que = Queue()
                 self.queues.append(que)
-                tt = Tkinter.Text(self.root, height =15,width = 45)
+                tt = Tkinter.Text(self.root, height =15,width = 55)
                 tt.grid(row=i,column = j)
                 print cfgs[index]
                 ssh = cssh(index,cfgs[index], que,tt)
@@ -298,6 +308,9 @@ class sshwin:
 
 def main():
     filename = "sshhost.ini"
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    
     item_key = "ssh-host"
     win = sshwin(filename, item_key)
     win.dossh()
