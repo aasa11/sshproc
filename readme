@@ -2,3 +2,9 @@ This is a liitle tool for mutil-connect ssh host, and doing same proc in one tim
 
 This is the first edition, and do not support special keys.
 So do not use vi ,etc. in this window.
+
+
+2013-07-23：
+fixed command ls , remove color code '0x1b....', which will show errocde on window.
+
+todo：Ctrl+C reponds, vi support.
