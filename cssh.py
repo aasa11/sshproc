@@ -3,6 +3,7 @@ Created on 2013/07/12
 
 @author: huxiufeng
 '''
+#coding=gbk
 
 import ConfigParser
 import paramiko
@@ -13,6 +14,8 @@ import threading
 from multiprocessing import Queue
 import thread
 import sys
+import binascii
+import re
 
 class ccfg:
     def __init__(self,filename):
@@ -83,6 +86,14 @@ class cssh(threading.Thread):
     def getrecv(self):
         while self.ssh.recv_ready():
             output = self.ssh.recv(1024)
+            #print binascii.hexlify(output)
+            #clear color code 0x1e1..39m
+            re_rule = re.compile('\\x1b\\x5b\d*;?\d*[a-zA-Z]')
+            output = re_rule.sub('', output)
+            output = output.replace('\x1bM','')
+            output = output.replace('\x1b','')
+            #output = output.replace('\\x1b\\x5b\d+m', "")
+            #print binascii.hexlify(output)
             try:
                 out2 = output.decode('gbk').encode('utf-8')
             except:
@@ -161,8 +172,8 @@ class cssh(threading.Thread):
             self.sendcmd(cmd)
             
     def modcmd(self,cmd):
-        if cmd.startswith("ls"):
-            cmd += " > lstmptxt; cat lstmptxt; rm lstmptxt;"
+#        if cmd.startswith("ls"):
+#            cmd += " > lstmptxt; cat lstmptxt; rm lstmptxt;"
         cmd += '\n'
         
         return cmd
@@ -226,7 +237,7 @@ class sshwin:
                     break
                 que = Queue()
                 self.queues.append(que)
-                tt = Tkinter.Text(self.root, height =15,width = 55)
+                tt = Tkinter.Text(self.root, height =15,width = 75)
                 tt.grid(row=i,column = j)
                 print cfgs[index]
                 ssh = cssh(index,cfgs[index], que,tt)
